@@ -1,15 +1,37 @@
 import plugin from 'fastify-plugin';
-import { getPurchaserList, getUser, login } from '@utils/network';
-import { User } from '@utils/network.model';
-import * as console from "console";
+import {
+  getEvents,
+  getPurchaserList,
+  getUserInfo,
+  login,
+} from '@utils/network';
+import { EventInfoList, Purchaser, User } from '@utils/network.model';
+import * as console from 'console';
 
+// noinspection JSUnusedGlobalSymbols
 export default plugin(async (fastify) => {
   const userMap = new Map<number, User>();
   fastify.decorate('allcpp', {
-    addUser: async (account: string, password: string) => {
+    getEvents: async (
+      index: number = 1,
+      size: number = 10
+    ): Promise<EventInfoList> => {
+      return await getEvents(index, size);
+    },
+    addUser: async (
+      account: string,
+      password: string
+    ): Promise<{ isNew: boolean; user: User }> => {
       let isNew = true;
       const token = await login(account, password);
-      const user = await getUser(token);
+      const userInfo = await getUserInfo(token);
+      const user = {
+        id: userInfo.id,
+        token: token,
+        nickname: userInfo.nickname,
+        avatar: userInfo.face.picUrl,
+        description: userInfo.description,
+      };
       if (userMap.has(user.id)) {
         isNew = false;
       } else {
@@ -26,23 +48,29 @@ export default plugin(async (fastify) => {
         return Array.from(userMap.values());
       }
     },
-    getPurchasers: (id: number) => {
+    getPurchasers: async (id: number): Promise<Purchaser[]> => {
       const token = userMap.get(id)?.token;
       if (token !== undefined) {
-        return getPurchaserList(token);
+        const purchaserInfo = await getPurchaserList(token);
+        return purchaserInfo.map((purchaser) => ({
+          id: purchaser.id,
+          name: purchaser.realname,
+        }));
       } else {
-        return null;
+        return [];
       }
     },
   });
 });
 
 declare module 'fastify' {
+  // noinspection JSUnusedGlobalSymbols
   export interface FastifyInstance {
     allcpp: {
+      getEvents: (index?: number, size?: number) => Promise<EventInfoList>;
       addUser: (account: string, password: string) => Promise<string>;
       getUser: (id?: number) => User | User[] | undefined;
-      getPurchasers: (id: number) => Promise<any>;
+      getPurchasers: (id: number) => Promise<Purchaser[]>;
     };
   }
 }

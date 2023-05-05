@@ -1,31 +1,36 @@
 import { FastifyPluginAsync } from 'fastify';
-import * as console from "console";
+import {
+  rootGetType,
+  rootPostType,
+  purchasersGet,
+  rootGetSchema,
+  rootPostSchema,
+  purchasersPostSchema,
+} from '@routes/user/schema';
 
 export default (async (fastify): Promise<void> => {
-  fastify.post<{
-    Body: {
-      account: string;
-      password: string;
-    };
-  }>('/', async function (request) {
-    const { account, password } = request.body;
-    return await fastify.allcpp.addUser(account, password);
-  });
-  fastify.get<{
-    Querystring: {
-      id?: number;
-    };
-  }>('/', async function (request) {
-    const { id } = request.query;
-    console.log(id);
-    return fastify.allcpp.getUser(id);
-  });
-  fastify.get<{
-    Querystring: {
-      id: number;
-    };
-  }>('/purchasers', async function (request) {
-    const { id } = request.query;
-    return await fastify.allcpp.getPurchasers(id);
-  });
+  fastify.get<rootGetType>(
+    '/',
+    { schema: rootGetSchema },
+    async function (request) {
+      const { id } = request.query;
+      return fastify.allcpp.getUser(id ? Number(id) : undefined);
+    }
+  );
+  fastify.post<rootPostType>(
+    '/',
+    { schema: rootPostSchema },
+    async function (request) {
+      const { account, password } = request.body;
+      return await fastify.allcpp.addUser(account, password);
+    }
+  );
+  fastify.get<purchasersGet>(
+    '/purchasers',
+    { schema: purchasersPostSchema },
+    async function (request) {
+      const { id } = request.query;
+      return await fastify.allcpp.getPurchasers(Number(id));
+    }
+  );
 }) as FastifyPluginAsync;
